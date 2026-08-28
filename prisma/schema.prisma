@@ -1,0 +1,234 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  ADMIN
+  RESPONDER
+}
+
+enum JourneyStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ZoneType {
+  SAFE
+  CAUTION
+  HIGH_RISK
+}
+
+enum DeviationStatus {
+  ON_ROUTE
+  MINOR_DEVIATION
+  MAJOR_DEVIATION
+}
+
+enum HealthStatus {
+  NORMAL
+  ABNORMAL
+  CRITICAL
+}
+
+enum SafetyState {
+  SAFE
+  WATCH
+  AT_RISK
+  CRITICAL
+  INCIDENT
+}
+
+enum RecommendedAction {
+  MONITOR
+  CHECK_IN
+  VERIFY
+  ESCALATE
+  DISPATCH
+}
+
+enum IncidentStatus {
+  OPEN
+  VERIFYING
+  DISPATCHED
+  RESOLVED
+}
+
+enum HazardSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model User {
+  id                String             @id @default(uuid())
+  email             String             @unique
+  passwordHash      String
+  name              String
+  role              Role               @default(USER)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  emergencyContacts EmergencyContact[]
+  journeys          Journey[]
+  devices           Device[]
+  reports           CommunityReport[]
+  hazardReports     RoadHazardReport[]
+  digitalTwin       DigitalTwin?
+  incidents         Incident[]
+}
+
+model EmergencyContact {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  relationship String
+  phone        String
+  email        String?
+  createdAt    DateTime @default(now())
+}
+
+model Journey {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startLat       Float
+  startLng       Float
+  destLat        Float
+  destLng        Float
+  destinationId  String?
+  destination    Destination?    @relation(fields: [destinationId], references: [id])
+  plannedRoute   Json            // Array of [lat, lng]
+  status         JourneyStatus   @default(PLANNED)
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime        @default(now())
+}
+
+model Destination {
+  id          String            @id @default(uuid())
+  name        String
+  latitude    Float
+  longitude   Float
+  description String
+  safetyScore Float             @default(80.0)
+  geoFenceId  String?           @unique
+  geoFence    GeoFence?         @relation(fields: [geoFenceId], references: [id])
+  journeys    Journey[]
+  reports     CommunityReport[]
+}
+
+model GeoFence {
+  id          String       @id @default(uuid())
+  name        String
+  latitude    Float
+  longitude   Float
+  radiusMeters Float
+  zoneType    ZoneType     @default(CAUTION)
+  baseRisk    Float        @default(20.0)
+  destination Destination?
+}
+
+model DigitalTwin {
+  id                   String            @id @default(uuid())
+  userId               String            @unique
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastLat              Float?
+  lastLng              Float?
+  speed                Float?            @default(0.0)
+  currentZoneId        String?
+  currentZoneType      ZoneType?
+  zoneRisk             Float             @default(0.0)
+  deviationDistance    Float             @default(0.0)
+  deviationStatus      DeviationStatus   @default(ON_ROUTE)
+  lastHeartRate        Int?
+  lastSpo2             Int?
+  healthStatus         HealthStatus      @default(NORMAL)
+  lastMovementAt       DateTime          @default(now())
+  riskScore            Float             @default(0.0)
+  confidence           Float             @default(100.0)
+  safetyState          SafetyState       @default(SAFE)
+  recommendedAction    RecommendedAction @default(MONITOR)
+  activeContributors   Json              @default("[]")
+  updatedAt            DateTime          @updatedAt
+}
+
+model Device {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceName     String
+  deviceType     String          // SMARTWATCH, CAMERA_DASHCAM, MOBILE
+  isConnected    Boolean         @default(true)
+  lastSeen       DateTime        @default(now())
+  healthReadings HealthReading[]
+}
+
+model HealthReading {
+  id          String       @id @default(uuid())
+  deviceId    String
+  device      Device       @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  heartRate   Int
+  spo2        Int
+  status      HealthStatus @default(NORMAL)
+  timestamp   DateTime     @default(now())
+}
+
+model RoadHazardReport {
+  id               String         @id @default(uuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id])
+  latitude         Float
+  longitude        Float
+  hazardType       String         // POTHOLE, WATERLOGGING, UNLIT_ROAD
+  severity         HazardSeverity @default(MEDIUM)
+  potholeCount     Int            @default(1)
+  imageUrl         String?
+  contractorName   String?
+  legalNoticeSent  Boolean        @default(false)
+  timestamp        DateTime       @default(now())
+}
+
+model CommunityReport {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  destinationId String
+  destination   Destination @relation(fields: [destinationId], references: [id])
+  safetyRating  Float
+  safetyStatus  String      // SAFE, MOSTLY_SAFE, UNSAFE
+  tags          String[]
+  comment       String
+  createdAt     DateTime    @default(now())
+}
+
+model Incident {
+  id          String          @id @default(uuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id])
+  latitude    Float
+  longitude   Float
+  status      IncidentStatus  @default(OPEN)
+  reason      String
+  snapshot    Json
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  events      IncidentEvent[]
+}
+
+model IncidentEvent {
+  id         String   @id @default(uuid())
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  eventType  String
+  payload    Json?
+  timestamp  DateTime @default(now())
+}
