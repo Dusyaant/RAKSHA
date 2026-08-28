@@ -124,6 +124,50 @@ async function main() {
     }
   });
 
+  // 6. Seed Verified Safe Places (Police & Medical)
+  await prisma.safePlace.createMany({
+    data: [
+      {
+        name: 'Central Police Station',
+        category: 'POLICE_STATION',
+        latitude: 12.9720,
+        longitude: 77.5955,
+        contact: '112',
+        address: 'MG Road Junction',
+        isVerified: true
+      },
+      {
+        name: 'City Care Trauma Center & Hospital',
+        category: 'HOSPITAL',
+        latitude: 12.9735,
+        longitude: 77.5920,
+        contact: '108',
+        address: 'Residency Road',
+        isVerified: true
+      }
+    ]
+  });
+
+  // 7. Seed Road Contractor Registry
+  await prisma.roadContractorRegistry.createMany({
+    data: [
+      {
+        stateCode: 'KA',
+        authorityName: 'Karnataka PWD',
+        contractorName: 'Apex Road Infrastructure Consortium',
+        contractorEmail: 'apex.infrastructure@roadworks.in',
+        jurisdiction: 'Bangalore Urban'
+      },
+      {
+        stateCode: 'TN',
+        authorityName: 'Tamil Nadu Highways',
+        contractorName: 'Coromandel Highway Projects',
+        contractorEmail: 'complaints@coromandelroads.in',
+        jurisdiction: 'Chennai-Vellore Corridor'
+      }
+    ]
+  });
+  
   console.log('✅ Demo seeding complete:');
   console.log(`- Traveler: traveler@raksha.io (Password: Password123!)`);
   console.log(`- Admin: admin@raksha.io (Password: AdminPass123!)`);

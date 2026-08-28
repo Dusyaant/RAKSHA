@@ -1,6 +1,5 @@
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -72,17 +71,18 @@ model User {
   id                String             @id @default(uuid())
   email             String             @unique
   passwordHash      String
-  name              String
+  name              String?
   role              Role               @default(USER)
+  digitalTwin       DigitalTwin?
+  emergencyContacts EmergencyContact[]
+  devices           Device[]
+  journeys          Journey[]
+  hazardReports     RoadHazardReport[]
+  incidents         Incident[]
+  evidence          EvidenceMedia[]    
+  communityReports  CommunityReport[]  // <--- ADD THIS LINE
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
-  emergencyContacts EmergencyContact[]
-  journeys          Journey[]
-  devices           Device[]
-  reports           CommunityReport[]
-  hazardReports     RoadHazardReport[]
-  digitalTwin       DigitalTwin?
-  incidents         Incident[]
 }
 
 model EmergencyContact {
@@ -211,17 +211,18 @@ model CommunityReport {
 }
 
 model Incident {
-  id          String          @id @default(uuid())
+  id          String   @id @default(uuid())
   userId      String
-  user        User            @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
   latitude    Float
   longitude   Float
-  status      IncidentStatus  @default(OPEN)
+  status      String   @default("OPEN")
   reason      String
   snapshot    Json
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  events      IncidentEvent[]
+  evidence    EvidenceMedia[]    
+  events      IncidentEvent[]    // <--- ADD THIS LINE
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
 }
 
 model IncidentEvent {
@@ -231,4 +232,39 @@ model IncidentEvent {
   eventType  String
   payload    Json?
   timestamp  DateTime @default(now())
+}
+
+model SafePlace {
+  id          String   @id @default(uuid())
+  name        String
+  category    String   
+  latitude    Float
+  longitude   Float
+  contact     String?
+  address     String?
+  isVerified  Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model EvidenceMedia {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaType   String    
+  mediaUrl    String
+  latitude    Float?
+  longitude   Float?
+  incidentId  String?
+  incident    Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+}
+
+model RoadContractorRegistry {
+  id             String   @id @default(uuid())
+  stateCode      String   
+  authorityName  String   
+  contractorName String
+  contractorEmail String
+  jurisdiction   String
+  createdAt      DateTime @default(now())
 }
